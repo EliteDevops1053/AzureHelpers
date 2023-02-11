@@ -1,0 +1,194 @@
+{
+    "properties": {
+        "displayName": "Enforce backup for blobs on all Storage Accounts by backing them up to an existing central recovery services vault.",
+        "policyType": "Custom",
+        "mode": "Indexed",
+        "description": "Enforce backup for blobs on all Storage Accounts by backing them up to an existing central recovery services vault in the same subscription as the Storage Account. Doing this is can help you manage backup of blobs contained across multiple storage accounts at scale.\\n\\nYou can optionally exclude Storage Accounts containing a specified tag to control the scope of assignment. \\n For more details, refer to https://aka.ms/AB-BlobBackupAzPolicies",
+        "metadata": {
+            "category": "Backup"
+        },
+        "parameters": {
+            "backupPolicyId": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Backup Policy (of type Azure Blobs (Azure Storage) from a vault in the Subscription )",
+                    "description": "Specify the ID of the backup policy to be used for configuring backup for blobs. The selected Azure Backup policy should be of type Azure Blobs (Azure Storage). This policy needs to be in a vault that is present in the Subscription chosen above. For example - /subscriptions/<SubscriptionId>/resourceGroups/<resourceGroupName>/providers/Microsoft.DataProtection/vaults/<VaultName>/backupPolicies/<BackupPolicyName>. Also, make sure that this Backup vault's managed identity has the Storage Account Backup Contributor role assigned on the storage accounts for which backup is to be configured."
+                }
+            },
+            "exclusionTagName": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Exclusion Tag Name",
+                    "description": "Name of the tag to use for excluding storage accounts in the scope of this policy. This should be used along with the Exclusion Tag Value parameter. Learn more at https://aka.ms/AB-BlobBackupAzPolicies"
+                },
+                "defaultValue": "BackupExcluded"
+            },
+            "exclusionTagValue": {
+                "type": "Array",
+                "metadata": {
+                    "displayName": "Exclusion Tag Values",
+                    "description": "Value of the tag to use for excluding storage accounts in the scope of this policy (in case of multiple values, use a comma-separated list). This should be used along with the Exclusion Tag Name parameter. Learn more at https://aka.ms/AppCentricVMBackupPolicy."
+                },
+                "defaultValue": [
+                    "1",
+                    "true",
+                    "yes"
+                ]
+            },
+            "effect": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "Effect",
+                    "description": "Enable or disable the execution of the policy"
+                },
+                "allowedValues": [
+                    "AuditIfNotExists",
+                    "DeployIfNotExists",
+                    "Disabled"
+                ],
+                "defaultValue": "DeployIfNotExists"
+            }
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "field": "type",
+                        "equals": "Microsoft.Storage/StorageAccounts"
+                    },
+                    {
+                        "field": "Microsoft.Storage/storageAccounts/sku.name",
+                        "contains": "Standard"
+                    },
+                    {
+                        "field": "kind",
+                        "equals": "StorageV2"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "not": {
+                                    "field": "[toLower(concat('tags[', parameters('exclusionTagName'), ']'))]",
+                                    "in": "[parameters('exclusionTagValue')]"
+                                }
+                            },
+                            {
+                                "value": "[empty(parameters('exclusionTagValue'))]",
+                                "equals": "true"
+                            },
+                            {
+                                "value": "[empty(parameters('exclusionTagName'))]",
+                                "equals": "true"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "then": {
+                "effect": "[parameters('effect')]",
+                "details": {
+                    "type": "Microsoft.Storage/storageAccounts/blobServices",
+                    "name": "default",
+                    "existenceCondition": {
+                        "field": "Microsoft.Storage/storageAccounts/blobServices/default.restorePolicy.enabled",
+                        "equals": true
+                    },
+                    "roleDefinitionIds": [
+                        "/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c",
+                        "/providers/Microsoft.Authorization/roleDefinitions/5e467623-bb1f-42f4-a55d-6e525e11384b",
+                        "/providers/Microsoft.Authorization/roleDefinitions/e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1"
+                    ],
+                    "deployment": {
+                        "properties": {
+                            "mode": "incremental",
+                            "template": {
+                                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                                "contentVersion": "1.0.0.0",
+                                "parameters": {
+                                    "backupPolicyId": {
+                                        "type": "string",
+                                        "metadata": {
+                                            "description": "Backup Policy Id"
+                                        }
+                                    },
+                                    "storageAccountResourceId": {
+                                        "type": "string",
+                                        "metadata": {
+                                            "description": "ResourceId of the Storage Account"
+                                        }
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "metadata": {
+                                            "description": "Location for all resources"
+                                        }
+                                    }
+                                },
+                                "variables": {
+                                    "storageAccountName": "[first(skip(split(parameters('storageAccountResourceId'), '/'), 8))]",
+                                    "dataSourceType": "Microsoft.Storage/storageAccounts/blobServices",
+                                    "resourceType": "Microsoft.Storage/storageAccounts",
+                                    "backupPolicyName": "[first(skip(split(parameters('backupPolicyId'), '/'), 10))]",
+                                    "vaultName": "[first(skip(split(parameters('backupPolicyId'), '/'), 8))]",
+                                    "vaultResourceGroup": "[first(skip(split(parameters('backupPolicyId'), '/'), 4))]",
+                                    "vaultSubscriptionId": "[first(skip(split(parameters('backupPolicyId'), '/'), 2))]"
+                                },
+                                "resources": [
+                                    {
+                                        "type": "Microsoft.Resources/deployments",
+                                        "apiVersion": "2021-04-01",
+                                        "resourceGroup": "[variables('vaultResourceGroup')]",
+                                        "subscriptionId": "[variables('vaultSubscriptionId')]",
+                                        "name": "[concat('DeployProtection-',uniqueString(variables('storageAccountName')))]",
+                                        "properties": {
+                                            "mode": "Incremental",
+                                            "template": {
+                                                "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                                                "contentVersion": "1.0.0.0",
+                                                "parameters": {},
+                                                "resources": [
+                                                    {
+                                                        "type": "Microsoft.DataProtection/backupvaults/backupInstances",
+                                                        "apiVersion": "2021-01-01",
+                                                        "name": "[concat(variables('vaultName'), '/', variables('storageAccountName'))]",
+                                                        "properties": {
+                                                            "objectType": "BackupInstance",
+                                                            "dataSourceInfo": {
+                                                                "objectType": "Datasource",
+                                                                "resourceID": "[parameters('storageAccountResourceId')]",
+                                                                "resourceName": "[variables('storageAccountName')]",
+                                                                "resourceType": "[variables('resourceType')]",
+                                                                "resourceUri": "[parameters('storageAccountResourceId')]",
+                                                                "resourceLocation": "[parameters('location')]",
+                                                                "datasourceType": "[variables('dataSourceType')]"
+                                                            },
+                                                            "policyInfo": {
+                                                                "policyId": "[parameters('backupPolicyId')]",
+                                                                "name": "[variables('backupPolicyName')]"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                ]
+                            },
+                            "parameters": {
+                                "storageAccountResourceId": {
+                                    "value": "[field('id')]"
+                                },
+                                "backupPolicyId": {
+                                    "value": "[parameters('backupPolicyId')]"
+                                },
+                                "location": {
+                                    "value": "[field('location')]"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
