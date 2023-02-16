@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armProviderNamespace": {
+      "value": "Microsoft.RecoveryServices"
+    },
+    "vaultName": {
+      "value": "testvault"
+    },
+    "vaultRG": {
+      "value": "testrg"
+    },
+    "vaultSubID": {
+      "value": "09e9f915-42ff-4571-82a4-0912ed4de2e6"
+    },
+    "policyName": {
+      "value": "testpolicy"
+    },
+    "fabricName": {
+      "value": "Azure"
+    },
+    "protectionContainers": {
+      "value": [
+        "storagecontainer;storage;testrg;testfilesharestorage123"
+      ]
+    },
+    "protectedItems": {
+      "value": [
+        "azurefileshare;04c274ab4d1693cf41ec92876210e257da28248f4c857f2b4beb17fac5c93dc3"
+      ]
+    },
+    "sourceResourceIds": {
+      "value": [
+        "/subscriptions/09e9f915-42ff-4571-82a4-0912ed4de2e6/resourceGroups/testrg/providers/Microsoft.Storage/storageAccounts/testfilesharestorage123"
+      ]
+    }
+  }
+}
