@@ -13,11 +13,9 @@ param tenantId string
 @description('This value determines whether access is allowed from all networks or only set virtual networks')
 param networkAclsDefaultAction string
 
+param DbName string
 
-
-
-
-
+param ServerName string
 
 resource keyVault 'Microsoft.KeyVault/vaults@2018-02-14' = {
   name: keyVaultName
@@ -37,6 +35,25 @@ resource keyVault 'Microsoft.KeyVault/vaults@2018-02-14' = {
       bypass: 'AzureServices'
       defaultAction: networkAclsDefaultAction
     }
+  }
+}
+
+resource DBNamedetails 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  name: DbName
+  parent: keyVault
+  properties: {
+    contentType: 'string'
+    value: 'string'
+  }
+}
+
+resource Serverdetails 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
+  name: ServerName
+
+  parent: keyVault
+  properties: {
+    contentType: 'string'
+    value: 'string'
   }
 }
 
