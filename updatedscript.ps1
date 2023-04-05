@@ -11,7 +11,7 @@ Function Connect-Azure {
   }
   Process {
     Try {
-        $subs = Get-AzSubscription -SubscriptionId "fcf65c12-e569-4fe5-8433-b4142d1f6219"
+        $subs = Get-AzSubscription -SubscriptionId ""
         foreach ($sub in $subs){
             Set-AzContext -SubscriptionId $sub.Id
         
