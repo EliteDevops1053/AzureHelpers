@@ -1,0 +1,95 @@
+
+param (
+
+    [Parameter(Mandatory = $true)]$basepath,
+    
+    $mdsdLatestVersion = "Up1",
+    $mdmLatestVersion = "up2",
+    $fluentdLatestVersion = "up3",
+    $secpackLatestVersion = "up4",
+    # national cloud variables
+    $mdsdncLatestVersion = "up5",
+    $mdmncLatestVersion = "up6",
+    $fluentdncLatestVersion = "up7",
+    $secpackncLatestVersion = "up8"
+)
+Function SwithDir {
+    Set-Location $basepath
+
+}
+function CreateBranch {
+    git checkout -b users/<user alias>
+    git branch
+    
+}
+
+Function UpdateMafifest {
+    Write-Output "updating the mdsd version in EnvironmentManifest.json"
+    $path = "$basepath\EnvironmentManifest.json"
+    $pathtest = "$basepath\EnvironmentManifestupdated.json"
+    $Data = get-content $path
+    
+    //remove comments
+    $removedCommentsdata = $Data -replace '(?m)(?<=^([^"]|"[^"]*")*)//.*' -replace '(?ms)/\*.*?\*/' | ConvertFrom-Json
+
+    $mdsdPreviousVersion = $removedCommentsdata.environmentTypes.Dev.mdsdDockerTag
+    $mdmPreviousVersion = $removedCommentsdata.environmentTypes.Dev.mdmDockerTag
+    $fluentdPreviousVersion = $removedCommentsdata.environmentTypes.Dev.fluentdDockerTag
+    $secpackPreviousVersion = $removedCommentsdata.environmentTypes.Dev.secpackDockerTag
+    
+    $data = $data.Replace('"mdsdDockerTag": "'+ $mdsdPreviousVersion, '"mdsdDockerTag": "'+ $mdsdLatestVersion )
+    
+    $data = $data.Replace($mdsdPreviousVersion, $mdsdLatestVersion)
+    $data = $data.Replace($mdmPreviousVersion, $mdmLatestVersion)
+    $data = $data.Replace($fluentdPreviousVersion, $fluentdLatestVersion)
+    $data = $data.Replace($secpackPreviousVersion, $secpackLatestVersion)
+    $data = $data.Replace($mdsdncPreviousVersion, $mdsdncLatestVersion)
+    $data = $data.Replace($mdmncPreviousVersion, $mdmncLatestVersion)
+    $data = $data.Replace($fluentdncPreviousVersion, $fluentdncLatestVersion)
+    $data = $data.Replace($secpackncPreviousVersion, $secpackncLatestVersion)
+
+    Set-Content $pathtest -Value $Data -Force
+
+}
+
+function CreatePullRequest {
+    # commiting and pushing the changes
+    git branch
+    git add .
+    git commit -m "Updated latest Geneva Images"
+    git push origin users/dileep
+    git status
+
+    #creating the PR
+    # construct base URLs
+    $apisUrl = "$($env:SYSTEM_TEAMFOUNDATIONCOLLECTIONURI)/$($env:SYSTEM_TEAMPROJECT)/_apis"
+
+    $projectUrl = "$apisUrl/git/repositories/ArtifactStore"
+    # create common headers
+
+    $headers = @{}
+    $headers.Add("Authorization", "Bearer $env:SYSTEM_ACCESSTOKEN")
+    $headers.Add("Content-Type", "application/json")
+
+    # Create a Pull Request
+    $pullRequestUrl = "$projectUrl/pullrequests?api-version=5.1"
+    $pullRequest = @{
+
+        "sourceRefName" = "refs/heads/users/<user>"
+
+        "targetRefName" = "refs/heads/develop"
+
+        "title"         = "Geneva images upgrade - ArtifactStore"
+
+        "description"   = "updating values.yml file with latest geneva image versions"
+
+    }
+    $pullRequestJson = ($pullRequest | ConvertTo-Json -Depth 5)
+    Write-Output "Sending a REST call to create a new pull request from private branch to develop"
+    
+}
+
+SwithDir
+#CreateBranch
+UpdateMafifest
+#Createpullrequest
